@@ -1,0 +1,48 @@
+@Support.Api_HostAddress = http://localhost:5292
+
+### Estado de la aplicación: debe responder 200 con el texto "Healthy"
+GET {{Support.Api_HostAddress}}/health
+
+### Crear una incidencia (queda Open). Se espera 201 con la incidencia y su ubicación.
+# @name crearIncidencia
+POST {{Support.Api_HostAddress}}/api/incidents
+Content-Type: application/json
+
+{
+  "title": "No se puede emitir la factura",
+  "description": "Al emitir una factura aparece un error y no se genera el número.",
+  "priority": "High",
+  "reportedBy": "ana"
+}
+
+### Id de la incidencia recién creada (se reutiliza en las peticiones siguientes)
+@incidentId = {{crearIncidencia.response.body.$.id}}
+
+### Listar incidencias; los filtros son opcionales. Se espera 200 con una lista.
+GET {{Support.Api_HostAddress}}/api/incidents?status=Open&priority=High
+
+### Consultar una incidencia. Se espera 200, o 404 si el id no existe.
+GET {{Support.Api_HostAddress}}/api/incidents/{{incidentId}}
+
+### Empezar a trabajarla (Open -> InProgress). Se espera 200; 409 si no estaba Open.
+POST {{Support.Api_HostAddress}}/api/incidents/{{incidentId}}/start
+
+### Escalarla al proveedor (InProgress -> EscalatedToVendor). Se espera 200 con la referencia del ticket; 409 si no estaba InProgress.
+POST {{Support.Api_HostAddress}}/api/incidents/{{incidentId}}/escalate
+
+### Darla por resuelta (InProgress o EscalatedToVendor -> Resolved). Se espera 200; 409 si el estado no lo permite.
+POST {{Support.Api_HostAddress}}/api/incidents/{{incidentId}}/resolve
+
+### Cerrarla (Resolved -> Closed). Se espera 200; 409 si no estaba Resolved o ya estaba cerrada.
+POST {{Support.Api_HostAddress}}/api/incidents/{{incidentId}}/close
+
+### Prueba de error: título vacío. Se espera 400 con un ProblemDetails.
+POST {{Support.Api_HostAddress}}/api/incidents
+Content-Type: application/json
+
+{
+  "title": "",
+  "description": "x",
+  "priority": "High",
+  "reportedBy": "ana"
+}
